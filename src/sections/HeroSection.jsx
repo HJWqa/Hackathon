@@ -18,8 +18,6 @@ export function HeroSection({
       className="hero"
       id="top"
     >
-      <div className="hero__beam-backdrop" aria-hidden="true" />
-      <div className="hero__light-wash" aria-hidden="true" />
       {!showCanvas ? <div className="hero__beam-origin" aria-hidden="true" /> : null}
       <div className="hero__canvas" aria-hidden="true">
         {showCanvas ? (

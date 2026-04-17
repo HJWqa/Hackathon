@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { PerspectiveCamera, Text } from "@react-three/drei";
+import { PerspectiveCamera } from "@react-three/drei";
 import {
   AdditiveBlending,
   CatmullRomCurve3,
@@ -45,14 +45,6 @@ const CHAPTER_META = [
   { beamScale: 0.58, beamTilt: 0.12, energy: 0.5, ringOpacity: 0.03, structure: 0.12 }
 ];
 
-const CHAPTER_LABELS = [
-  { number: "00", title: "WBU AI" },
-  { number: "01", title: "MANIFEST" },
-  { number: "02", title: "TRACKS" },
-  { number: "03", title: "SCHEDULE" },
-  { number: "04", title: "APPLY" }
-];
-
 function chapterSample(progress) {
   const clamped = Math.max(0, Math.min(MAX_INDEX, progress));
   const startIndex = Math.floor(clamped);
@@ -70,7 +62,7 @@ function chapterSample(progress) {
   };
 }
 
-function BeamSystem({ pointer, reducedMotion, progressRef }) {
+function BeamSystem({ pointer, reducedMotion, progressRef, beamWorldRef, beamStateRef }) {
   const rootRef = useRef();
   const coreRef = useRef();
   const auraRef = useRef();
@@ -105,6 +97,16 @@ function BeamSystem({ pointer, reducedMotion, progressRef }) {
       4,
       delta
     );
+
+    if (beamWorldRef) {
+      coreRef.current.getWorldPosition(beamWorldRef.current);
+      beamWorldRef.current.x += Math.cos(rootRef.current.rotation.z) * 3.6;
+      beamWorldRef.current.y += Math.sin(rootRef.current.rotation.z) * 3.6 + 0.18;
+    }
+    if (beamStateRef) {
+      beamStateRef.current.angle = rootRef.current.rotation.z;
+      beamStateRef.current.intensity = chapter.energy;
+    }
   });
 
   return (
@@ -195,24 +197,6 @@ function ChapterStructures({ progressRef }) {
         </mesh>
       ))}
     </group>
-  );
-}
-
-function ForegroundOccluder({ progressRef }) {
-  const ref = useRef();
-
-  useFrame((_, delta) => {
-    if (!ref.current) return;
-    const x = MathUtils.lerp(CHAPTER_X[0], CHAPTER_X[MAX_INDEX], progressRef.current / MAX_INDEX);
-    ref.current.position.x = MathUtils.damp(ref.current.position.x, x - 2.4, 3.8, delta);
-    ref.current.material.opacity = MathUtils.damp(ref.current.material.opacity, 0.38, 4, delta);
-  });
-
-  return (
-    <mesh ref={ref} position={[-2.4, 0.1, 1.4]} rotation={[0, 0.12, 0]}>
-      <planeGeometry args={[1.1, 5.6]} />
-      <meshStandardMaterial color="#050506" transparent opacity={0.64} roughness={1} metalness={0} />
-    </mesh>
   );
 }
 
@@ -315,63 +299,39 @@ function FramingLines() {
   );
 }
 
-function ChapterTypeSystem({ progressRef }) {
-  const groupRef = useRef();
+function CSSBridge({ progressRef, beamWorldRef, beamStateRef }) {
+  const { camera, size } = useThree();
+  const projected = useRef(new Vector3());
+  const smoothed = useRef({ x: 0.78, y: 0.22 });
 
-  useFrame((_, delta) => {
-    if (!groupRef.current) return;
+  useFrame(() => {
+    projected.current.copy(beamWorldRef.current).project(camera);
 
-    groupRef.current.children.forEach((child, index) => {
-      const distance = Math.abs(progressRef.current - index);
-      const emphasis = Math.max(0, 1 - distance);
-      child.position.y = MathUtils.damp(child.position.y, -0.18 + emphasis * 0.08, 4.2, delta);
-      child.position.z = MathUtils.damp(child.position.z, -0.26 + emphasis * 0.12, 4.2, delta);
-      child.rotation.y = MathUtils.damp(child.rotation.y, (index - progressRef.current) * 0.18, 4.2, delta);
-      child.children.forEach((sub, subIndex) => {
-        const opacity = subIndex === 0 ? 0.12 + emphasis * 0.26 : 0.26 + emphasis * 0.52;
-        sub.material.opacity = MathUtils.damp(sub.material.opacity, opacity, 4, delta);
-      });
-    });
+    const rawX = (projected.current.x * 0.5 + 0.5);
+    const rawY = (-projected.current.y * 0.5 + 0.5);
+    const behind = projected.current.z > 1;
+    const targetX = behind ? smoothed.current.x : MathUtils.clamp(rawX, -0.1, 1.1);
+    const targetY = behind ? smoothed.current.y : MathUtils.clamp(rawY, -0.1, 1.1);
+
+    smoothed.current.x += (targetX - smoothed.current.x) * 0.14;
+    smoothed.current.y += (targetY - smoothed.current.y) * 0.14;
+
+    const root = document.documentElement.style;
+    root.setProperty("--beam-x", smoothed.current.x.toFixed(4));
+    root.setProperty("--beam-y", smoothed.current.y.toFixed(4));
+    root.setProperty("--beam-angle", (beamStateRef.current.angle * (180 / Math.PI)).toFixed(3));
+    root.setProperty("--beam-intensity", beamStateRef.current.intensity.toFixed(3));
+    root.setProperty("--scene-progress", (progressRef.current / MAX_INDEX).toFixed(4));
+    root.setProperty("--viewport-aspect", (size.width / Math.max(size.height, 1)).toFixed(3));
   });
 
-  return (
-    <group ref={groupRef}>
-      {CHAPTER_X.map((x, index) => (
-        <group key={x} position={[x - 1.6, -0.18, -0.26]}>
-          <Text
-            position={[0, 0.66, 0]}
-            fontSize={0.28}
-            letterSpacing={0.16}
-            color="#b8a57c"
-            anchorX="left"
-            anchorY="middle"
-            material-transparent
-            material-opacity={0.16}
-            toneMapped={false}
-          >
-            {CHAPTER_LABELS[index].number}
-          </Text>
-          <Text
-            position={[0, 0, 0]}
-            fontSize={0.82}
-            letterSpacing={0.04}
-            color="#f3f1ea"
-            anchorX="left"
-            anchorY="middle"
-            material-transparent
-            material-opacity={0.38}
-            toneMapped={false}
-          >
-            {CHAPTER_LABELS[index].title}
-          </Text>
-        </group>
-      ))}
-    </group>
-  );
+  return null;
 }
 
 function Scene({ pointer, reducedMotion, progressRef }) {
   const { scene, camera } = useThree();
+  const beamWorldRef = useRef(new Vector3(0, 0.2, 0));
+  const beamStateRef = useRef({ angle: 0, intensity: 0.8 });
 
   useEffect(() => {
     scene.background = new Color("#000000");
@@ -406,13 +366,22 @@ function Scene({ pointer, reducedMotion, progressRef }) {
       <pointLight position={[2.8, 1.5, 1.6]} intensity={0.52} color="#e8dcc4" />
       <pointLight position={[16, -1.4, -1.2]} intensity={0.12} color="#8d8573" />
       <StagePlane progressRef={progressRef} />
-      <BeamSystem pointer={pointer} reducedMotion={reducedMotion} progressRef={progressRef} />
+      <BeamSystem
+        pointer={pointer}
+        reducedMotion={reducedMotion}
+        progressRef={progressRef}
+        beamWorldRef={beamWorldRef}
+        beamStateRef={beamStateRef}
+      />
       <ChapterStructures progressRef={progressRef} />
-      <ChapterTypeSystem progressRef={progressRef} />
-      <ForegroundOccluder progressRef={progressRef} />
       <AtmosphereRings progressRef={progressRef} />
       <ParticleField pointer={pointer} reducedMotion={reducedMotion} progressRef={progressRef} />
       <FramingLines />
+      <CSSBridge
+        progressRef={progressRef}
+        beamWorldRef={beamWorldRef}
+        beamStateRef={beamStateRef}
+      />
     </>
   );
 }

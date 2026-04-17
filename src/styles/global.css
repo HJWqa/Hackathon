@@ -341,6 +341,11 @@ button {
   --pointer-x: 0;
   --pointer-y: 0;
   --pointer-mag: 0;
+  --beam-x: 0.78;
+  --beam-y: 0.22;
+  --beam-angle: 0;
+  --beam-intensity: 0.8;
+  --scene-progress: 0;
   min-height: 100vh;
   padding: 120px 0 56px;
   overflow: hidden;
@@ -349,63 +354,8 @@ button {
 .hero__canvas {
   position: absolute;
   inset: 0;
-}
-
-.hero__beam-backdrop {
-  position: absolute;
-  inset: -8vh -8vw 0 24vw;
-  pointer-events: none;
-  mix-blend-mode: screen;
-}
-
-.hero__beam-backdrop::before,
-.hero__beam-backdrop::after {
-  content: "";
-  position: absolute;
-  transform-origin: top right;
-  pointer-events: none;
-}
-
-.hero__beam-backdrop::before {
-  top: 4%;
-  right: 2%;
-  width: min(78vw, 1040px);
-  height: 18px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 4%, rgba(250, 247, 238, 0.92) 54%, rgba(255, 255, 255, 0) 100%);
-  filter: blur(3px);
-  opacity: 0.52;
-  transform: translate3d(
-      calc(var(--pointer-x) * -2.2vw),
-      calc(-6vh + var(--pointer-y) * -1.6vh),
-      0
-    )
-    rotate(calc(29.5deg + var(--pointer-x) * -1.2deg));
-  animation: beam-drift 14s ease-in-out infinite alternate;
-}
-
-.hero__beam-backdrop::after {
-  top: 8%;
-  right: 3%;
-  width: 74vw;
-  height: 26vh;
-  background: linear-gradient(134deg, rgba(255, 255, 255, 0) 28%, rgba(255, 255, 255, 0.08) 48%, rgba(255, 255, 255, 0) 66%);
-  filter: blur(26px);
-  transform: rotate(29.5deg);
-  opacity: 0.28;
-}
-
-.hero__light-wash {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(126deg, rgba(255, 255, 255, 0) 33%, rgba(255, 255, 255, 0.07) 49%, rgba(255, 255, 255, 0) 63%),
-    linear-gradient(128deg, rgba(193, 161, 108, 0) 32%, rgba(193, 161, 108, 0.06) 48%, rgba(193, 161, 108, 0) 64%),
-    radial-gradient(circle at 36% 60%, rgba(193, 161, 108, 0.08), transparent 0 24%);
-  mix-blend-mode: screen;
-  opacity: calc(0.44 + var(--pointer-mag) * 0.22);
-  transform: translate3d(calc(var(--pointer-x) * -1.3vw), calc(var(--pointer-y) * -1.1vh), 0);
-  transition: opacity 160ms ease;
+  opacity: calc(1 - clamp(0, (var(--scene-progress) - 0.05) * 2.2, 0.85));
+  transition: opacity 240ms ease;
 }
 
 .hero__beam-origin {
@@ -445,19 +395,6 @@ button {
   align-content: end;
   min-height: calc(100vh - 176px);
   transition: opacity 360ms ease, transform 620ms cubic-bezier(0.16, 1, 0.3, 1), filter 360ms ease;
-}
-
-.hero__content::before {
-  content: "";
-  position: absolute;
-  inset: auto auto 18% -6%;
-  width: min(56vw, 820px);
-  height: 36vh;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.08), transparent 0 68%);
-  filter: blur(18px);
-  opacity: 0.7;
-  pointer-events: none;
-  z-index: -1;
 }
 
 .hero__meta {
@@ -599,14 +536,19 @@ button {
 
 .hero__hint {
   position: absolute;
-  right: 22%;
-  top: 27%;
-  z-index: 1;
+  left: calc(var(--beam-x, 0.78) * 100%);
+  top: calc(var(--beam-y, 0.22) * 100%);
+  z-index: 2;
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--soft);
-  opacity: 0.82;
+  color: rgba(245, 240, 226, 0.82);
+  opacity: calc((0.42 + var(--beam-intensity, 0.8) * 0.5) * (1 - clamp(0, var(--scene-progress, 0) * 4, 1)));
+  transform: translate(18px, -50%);
+  text-shadow: 0 0 18px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  transition: opacity 240ms ease;
+  white-space: nowrap;
 }
 
 .chapter-overlay {
@@ -1359,15 +1301,6 @@ button {
   }
 }
 
-@keyframes beam-drift {
-  from {
-    transform: translate3d(2vw, -7vh, 0) rotate(-1deg) scale(1.01);
-  }
-  to {
-    transform: translate3d(-1vw, -5vh, 0) rotate(1.2deg) scale(1.03);
-  }
-}
-
 @keyframes chapter-enter {
   from {
     opacity: 0;
@@ -1514,20 +1447,6 @@ button {
     padding: 20px;
   }
 
-  .hero__beam-backdrop {
-    inset: -4vh -16vw 0 8vw;
-  }
-
-  .hero__beam-backdrop::before {
-    width: min(128vw, 920px);
-    transform: translate3d(0, -2vh, 0) rotate(29.5deg);
-  }
-
-  .hero__beam-backdrop::after {
-    width: min(132vw, 980px);
-    transform: translate3d(0, -1vh, 0) rotate(29.5deg);
-  }
-
   .section {
     padding-top: 72px;
   }
@@ -1544,8 +1463,6 @@ button {
 
   .site-nav a,
   .button,
-  .hero__beam-backdrop::before,
-  .hero__beam-backdrop::after,
   .story-panel .section {
     transition: none;
     animation: none;
@@ -1563,7 +1480,6 @@ button {
     filter: none;
   }
 
-  .hero__light-wash,
   .hero__beam-origin {
     transform: none;
   }
