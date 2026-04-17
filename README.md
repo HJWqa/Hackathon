@@ -39,7 +39,6 @@ npm run start
  `SMTP_PASS`
  `APPLY_TO_EMAIL`
 
-参考 [.env.example](/home/shiro/July/figma/hackathon-site/.env.example)。
 
 ## 架构
 
