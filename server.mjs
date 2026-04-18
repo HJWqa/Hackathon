@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs/promises";
+import { isValidEmail } from "./src/utils/emailValidation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -95,12 +96,20 @@ app.post("/api/apply", async (req, res) => {
     projectIdea: String(req.body?.projectIdea || "").trim()
   };
 
-  if (!payload.name || !payload.email || !payload.projectIdea) {
-    return res.status(400).json({ ok: false, message: "请至少填写姓名、邮箱和想法简介。" });
+  if (!payload.name || !payload.email || !payload.role || !payload.projectIdea) {
+    return res.status(400).json({ ok: false, message: "请填写姓名、邮箱、角色和想法简介。" });
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
-    return res.status(400).json({ ok: false, message: "邮箱格式不正确。" });
+  if (!isValidEmail(payload.email)) {
+    return res.status(400).json({ ok: false, message: "邮箱后缀不合法。" });
+  }
+
+  if (payload.role.length < 2) {
+    return res.status(400).json({ ok: false, message: "角色至少需要 2 个字符。" });
+  }
+
+  if (payload.projectIdea.length < 10) {
+    return res.status(400).json({ ok: false, message: "想法简介至少需要 10 个字符。" });
   }
 
   try {
